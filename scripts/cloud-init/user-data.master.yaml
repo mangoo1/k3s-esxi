@@ -1,0 +1,97 @@
+#cloud-config
+# Ubuntu 24.04 autoinstall — k3s-master
+# Variables filled by make-cidata-iso.sh from .env
+autoinstall:
+  version: 1
+  locale: en_AU.UTF-8
+  keyboard:
+    layout: us
+
+  network:
+    version: 2
+    ethernets:
+      ens192:
+        dhcp4: false
+        addresses: ["${MASTER_IP}/${SUBNET_PREFIX}"]
+        gateway4: "${GATEWAY}"
+        nameservers:
+          addresses: ["${DNS}"]
+
+  storage:
+    layout:
+      name: lvm
+    config:
+      - type: disk
+        id: disk0
+        match:
+          size: largest
+        ptable: gpt
+        wipe: superblock
+        grub_device: true
+      - type: partition
+        id: efi
+        device: disk0
+        size: 512M
+        flag: boot
+        grub_device: true
+      - type: partition
+        id: boot
+        device: disk0
+        size: 1G
+      - type: partition
+        id: root
+        device: disk0
+        size: -1
+      - type: format
+        id: efi_fmt
+        fstype: fat32
+        volume: efi
+      - type: format
+        id: boot_fmt
+        fstype: ext4
+        volume: boot
+      - type: format
+        id: root_fmt
+        fstype: ext4
+        volume: root
+      - type: mount
+        id: efi_mnt
+        device: efi_fmt
+        path: /boot/efi
+      - type: mount
+        id: boot_mnt
+        device: boot_fmt
+        path: /boot
+      - type: mount
+        id: root_mnt
+        device: root_fmt
+        path: /
+
+  identity:
+    hostname: k3s-master
+    username: "${VM_USER}"
+    # Generated with: echo "password" | openssl passwd -6 -stdin
+    password: "${VM_PASSWORD_HASH}"
+
+  ssh:
+    install-server: true
+    authorized-keys:
+      - "${VM_SSH_PUBKEY}"
+    allow-pw: false
+
+  packages:
+    - curl
+    - open-iscsi
+    - nfs-common
+    - vim
+    - htop
+    - qemu-guest-agent
+
+  late-commands:
+    - "systemctl enable qemu-guest-agent"
+    - "echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/ubuntu"
+    - "chmod 440 /target/etc/sudoers.d/ubuntu"
+
+  user-data:
+    disable_root: true
+    timezone: Australia/Sydney
