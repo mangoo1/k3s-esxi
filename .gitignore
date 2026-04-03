@@ -1,0 +1,4 @@
+# Local credentials - never commit
+.env
+*.env
+!k3s-sample.env
